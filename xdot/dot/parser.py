@@ -18,9 +18,9 @@ import sys
 
 from .lexer import ParseError, DotLexer
 
-from ..ui.colors import lookup_color
-from ..ui.pen import Pen
-from ..ui import elements
+from ui.colors import lookup_color
+from ui.pen import Pen
+from ui import elements
 
 
 EOF = -1
@@ -491,7 +491,7 @@ class XDotParser(DotParser):
             # create a Node object nevertheless, so that any edges to/from it
             # don't get lost.
             # TODO: Extract the position from subgraph > graph > bb attribute.
-            node = elements.Node(id, 0.0, 0.0, 0.0, 0.0, [], None, None)
+            node = elements.Node(id, 0.0, 0.0, 0.0, 0.0, [], None)
             self.node_by_name[id] = node
             return
 
@@ -509,7 +509,7 @@ class XDotParser(DotParser):
             url = None
         else:
             url = url.decode('utf-8')
-        node = elements.Node(id, x, y, w, h, shapes, url, attrs.get("tooltip"))
+        node = elements.Node(id, x, y, w, h, shapes, url)
         self.node_by_name[id] = node
         if shapes:
             self.nodes.append(node)
@@ -529,7 +529,7 @@ class XDotParser(DotParser):
         if shapes:
             src = self.node_by_name[src_id]
             dst = self.node_by_name[dst_id]
-            self.edges.append(elements.Edge(src, dst, points, shapes, attrs.get("tooltip")))
+            self.edges.append(elements.Edge(src, dst, points, shapes))
 
     def parse(self):
         DotParser.parse(self)

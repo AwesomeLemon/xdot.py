@@ -20,7 +20,6 @@ import re
 import subprocess
 import sys
 import time
-import operator
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -38,8 +37,8 @@ from gi.repository import Gdk
 # - http://comix.sourceforge.net/
 
 from . import actions
-from ..dot.lexer import ParseError
-from ..dot.parser import XDotParser
+from dot.lexer import ParseError
+from dot.parser import XDotParser
 from . import animation
 from . import actions
 from .elements import Graph
@@ -169,10 +168,7 @@ class DotWidget(Gtk.DrawingArea):
 
     def update(self):
         if self.openfilename is not None:
-            try:
-                current_mtime = os.stat(self.openfilename).st_mtime
-            except OSError:
-                return True
+            current_mtime = os.stat(self.openfilename).st_mtime
             if current_mtime != self.last_mtime:
                 self.last_mtime = current_mtime
                 self.reload()
@@ -336,12 +332,6 @@ class DotWidget(Gtk.DrawingArea):
             return True
         if event.keyval == Gdk.KEY_p:
             self.on_print()
-            return True
-        if event.keyval == Gdk.KEY_t:
-            # toggle toolbar visibility
-            win = widget.get_toplevel()
-            toolbar = win.uimanager.get_widget("/ToolBar")
-            toolbar.set_visible(not toolbar.get_visible())
             return True
         return False
 
@@ -535,10 +525,6 @@ class DotWindow(Gtk.Window):
             <toolitem action="Zoom100"/>
             <separator/>
             <toolitem name="Find" action="Find"/>
-            <separator name="FindNextSeparator"/>
-            <toolitem action="FindNext"/>
-            <separator name="FindStatusSeparator"/>
-            <toolitem name="FindStatus" action="FindStatus"/>
         </toolbar>
     </ui>
     '''
@@ -582,7 +568,6 @@ class DotWindow(Gtk.Window):
             ('ZoomOut', Gtk.STOCK_ZOOM_OUT, None, None, None, self.dotwidget.on_zoom_out),
             ('ZoomFit', Gtk.STOCK_ZOOM_FIT, None, None, None, self.dotwidget.on_zoom_fit),
             ('Zoom100', Gtk.STOCK_ZOOM_100, None, None, None, self.dotwidget.on_zoom_100),
-            ('FindNext', Gtk.STOCK_GO_FORWARD, 'Next Result', None, 'Move to the next search result', self.on_find_next),
         ))
 
         self.back_action = Gtk.Action('Back', None, None, Gtk.STOCK_GO_BACK)
@@ -599,44 +584,35 @@ class DotWindow(Gtk.Window):
                                          "Find a node by name", None)
         actiongroup.add_action(find_action)
 
-        findstatus_action = FindMenuToolAction("FindStatus", None,
-                                               "Number of results found", None)
-        actiongroup.add_action(findstatus_action)
-
         # Add the actiongroup to the uimanager
         uimanager.insert_action_group(actiongroup, 0)
 
         # Add a UI descrption
         uimanager.add_ui_from_string(self.ui)
 
-        # Create a Toolbar
-        toolbar = uimanager.get_widget('/ToolBar')
-        vbox.pack_start(toolbar, False, False, 0)
+        if True:
+            # Create a Toolbar
+            toolbar = uimanager.get_widget('/ToolBar')
+            vbox.pack_start(toolbar, False, False, 0)
 
-        vbox.pack_start(self.dotwidget, True, True, 0)
+            vbox.pack_start(self.dotwidget, True, True, 0)
 
-        self.last_open_dir = "."
+            self.last_open_dir = "."
 
-        self.set_focus(self.dotwidget)
+            self.set_focus(self.dotwidget)
 
-        # Add Find text search
-        find_toolitem = uimanager.get_widget('/ToolBar/Find')
-        self.textentry = Gtk.Entry(max_length=20)
-        self.textentry.set_icon_from_stock(0, Gtk.STOCK_FIND)
-        find_toolitem.add(self.textentry)
+            # Add Find text search
+            find_toolitem = uimanager.get_widget('/ToolBar/Find')
+            self.textentry = Gtk.Entry(max_length=20)
+            self.textentry.set_icon_from_stock(0, Gtk.STOCK_FIND)
+            find_toolitem.add(self.textentry)
 
-        self.textentry.set_activates_default(True)
-        self.textentry.connect("activate", self.textentry_activate, self.textentry);
-        self.textentry.connect("changed", self.textentry_changed, self.textentry);
+            self.textentry.set_activates_default(True)
+            self.textentry.connect("activate", self.textentry_activate, self.textentry);
+            self.textentry.connect("changed", self.textentry_changed, self.textentry);
+        else:
+            vbox.pack_start(self.dotwidget, True, True, 0)
 
-        uimanager.get_widget('/ToolBar/FindNextSeparator').set_draw(False)
-        uimanager.get_widget('/ToolBar/FindStatusSeparator').set_draw(False)
-        self.find_next_toolitem = uimanager.get_widget('/ToolBar/FindNext')
-        self.find_next_toolitem.set_sensitive(False)
-
-        self.find_count = Gtk.Label()
-        findstatus_toolitem = uimanager.get_widget('/ToolBar/FindStatus')
-        findstatus_toolitem.add(self.find_count)
 
         self.show_all()
 
@@ -647,11 +623,9 @@ class DotWindow(Gtk.Window):
         for element in dot_widget.graph.nodes + dot_widget.graph.edges:
             if element.search_text(regexp):
                 found_items.append(element)
-        return sorted(found_items, key=operator.methodcaller('get_text'))
+        return found_items
 
     def textentry_changed(self, widget, entry):
-        self.find_index = 0
-        self.find_next_toolitem.set_sensitive(False)
         entry_text = entry.get_text()
         dot_widget = self.dotwidget
         if not entry_text:
@@ -660,14 +634,8 @@ class DotWindow(Gtk.Window):
 
         found_items = self.find_text(entry_text)
         dot_widget.set_highlight(found_items, search=True)
-        if found_items:
-            self.find_count.set_label('%d nodes found' % len(found_items))
-        else:
-            self.find_count.set_label('')
 
     def textentry_activate(self, widget, entry):
-        self.find_index = 0
-        self.find_next_toolitem.set_sensitive(False)
         entry_text = entry.get_text()
         dot_widget = self.dotwidget
         if not entry_text:
@@ -676,9 +644,8 @@ class DotWindow(Gtk.Window):
 
         found_items = self.find_text(entry_text)
         dot_widget.set_highlight(found_items, search=True)
-        if found_items:
+        if(len(found_items) == 1):
             dot_widget.animate_to(found_items[0].x, found_items[0].y)
-        self.find_next_toolitem.set_sensitive(len(found_items) > 1)
 
     def set_filter(self, filter):
         self.dotwidget.set_filter(filter)
@@ -744,15 +711,6 @@ class DotWindow(Gtk.Window):
         dlg.set_title(self.base_title)
         dlg.run()
         dlg.destroy()
-
-    def on_find_next(self, action):
-        self.find_index += 1
-        entry_text = self.textentry.get_text()
-        # Maybe storing the search result would be better
-        found_items = self.find_text(entry_text)
-        found_item = found_items[self.find_index]
-        self.dotwidget.animate_to(found_item.x, found_item.y)
-        self.find_next_toolitem.set_sensitive(len(found_items) > self.find_index + 1)
 
     def on_history(self, action, has_back, has_forward):
         self.back_action.set_sensitive(has_back)
